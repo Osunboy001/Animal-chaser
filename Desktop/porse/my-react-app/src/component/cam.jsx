@@ -22,22 +22,41 @@ function BirdDetector() {
   const start = async () => {
     if (runningRef.current) return;
     setRunning(true);
+    let stream ;
     try {
-      audioRef.current.play().then(() => audioRef.current.pause()).catch(() => {});
+             setStatus("Opening webcam...")
+         stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } },
+      audio: false,
+  
+         })
 
-      setStatus("Opening webcam...");
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+        }
+        catch (e) {
+   
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+    e.name
+         }
+ 
+   videoRef.current.srcObject = stream;
+videoRef.current.muted = true;
+videoRef.current.setAttribute("playsinline", "");
+ await videoRef.current.play();
 
-      setStatus("Loading model...");
+    try {  setStatus("Loading model...");
       await tf.ready();
       modelRef.current = await cocoSsd.load();
 
       runningRef.current = true;
       setStatus("Watching...");
       requestAnimationFrame(loop);
-    } catch (err) {
+    }
+    
+    
+    catch (err) {
       setStatus("Error: " + err.message);
       setRunning(false);
     }
