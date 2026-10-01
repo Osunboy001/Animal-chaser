@@ -8,7 +8,7 @@ const COOLDOWN_MS = 6000;
 const SOUND_URL = "/goats.mp3";
 
 function BirdDetector() {
-  const videoRef = useRef(null);
+  const videoRef = useRef(null);``
   const audioRef = useRef(null);
   const modelRef = useRef(null);
   const runningRef = useRef(false);
