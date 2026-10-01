@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "./cam.css";
-
 const TARGETS = ["goat"];
 const MIN_SCORE = 0.5;
 const COOLDOWN_MS = 6000;
-const SOUND_URL = "/dog.mp3";
+const SOUND_URL = "/goats.mp3";
 
 function BirdDetector() {
   const videoRef = useRef(null);
