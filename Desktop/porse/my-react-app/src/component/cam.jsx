@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
+import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "./cam.css";
 
-const TARGET_LABELS = ["goat", "hen"];
-const MIN_SCORE = 0.48;
+const TARGETS = ["sheep", "cow", "bird"];
+const MIN_SCORE = 0.4;
 const SOUND_MS = 14000;
 const COOLDOWN_MS = 17000;
+const CHECK_MS = 500;
 const SOUND_URL = "/goats.mp3";
 
 function BirdDetector() {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const modelRef = useRef(null);
-  const labelsRef = useRef([]);
   const runningRef = useRef(false);
-  const lastPlayedRef = useRef(-COOLDOWN_MS);
+  const cooldownRef = useRef(false);
   const soundTimerRef = useRef(null);
+  const checkTimerRef = useRef(null);
 
   const [status, setStatus] = useState("Click Start");
   const [detected, setDetected] = useState(false);
@@ -37,8 +39,9 @@ function BirdDetector() {
       stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false,
+    
       });
-      e.name
+       e.name
     }
 
     videoRef.current.srcObject = stream;
@@ -61,6 +64,57 @@ function BirdDetector() {
     }
   };
 
+  const playAlarm = () => {
+    const audio = audioRef.current;
+    clearTimeout(soundTimerRef.current);
+    audio.loop = true;
+    audio.currentTime = 0;
+    audio.play().catch((err) => console.log("Sound error:", err.message));
+    soundTimerRef.current = setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    }, SOUND_MS);
+  };
+
+  const loop = async () => {
+    if (!runningRef.current) return;
+
+    try {
+      const video = videoRef.current;
+      if (video && video.readyState === 4) {
+        const results = await modelRef.current.detect(video);
+        console.log(results.map((r) => r.class + " " + Math.round(r.score * 100)));
+
+        const found = results
+          .filter((r) => TARGETS.includes(r.class) && r.score > MIN_SCORE)
+          .sort((a, b) => b.score - a.score)[0];
+
+        if (found) {
+          setDetected(true);
+          setScore(Math.round(found.score * 100));
+          setStatus(`${found.class} detected`);
+
+          if (!cooldownRef.current) {
+            cooldownRef.current = true;
+            playAlarm();
+            setTimeout(() => {
+              cooldownRef.current = false;
+            }, COOLDOWN_MS);
+          }
+        } else {
+          setDetected(false);
+          setScore(0);
+          setStatus("Watching... nothing detected");
+        }
+      }
+    } catch (err) {
+      console.log("Loop error:", err);
+      setStatus("Loop error: " + err.message);
+    }
+
+    checkTimerRef.current = setTimeout(loop, CHECK_MS);
+  };
+
   const start = async () => {
     if (runningRef.current) return;
     setRunning(true);
@@ -74,91 +128,21 @@ function BirdDetector() {
 
       setStatus("Loading model...");
       await tf.ready();
-      modelRef.current = await tf.loadLayersModel("/model/model.json");
-      const meta = await (await fetch("/model/metadata.json")).json();
-      labelsRef.current = meta.labels;
+    modelRef.current = await cocoSsd.load();
 
       runningRef.current = true;
       setStatus("Watching...");
-      requestAnimationFrame(loop);
+      loop();
     } catch (err) {
       setStatus("Error: " + err.name + " - " + err.message);
       setRunning(false);
     }
   };
 
-  const playAlarm = () => {
-    const audio = audioRef.current;
-    clearTimeout(soundTimerRef.current);
-    audio.loop = true;
-    audio.currentTime = 0;
-    audio.play().catch((err) => console.log("Sound error:", err.message));
-    soundTimerRef.current = setTimeout(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }, SOUND_MS);
-  };
-
-  const loop = async (timestamp) => {
-    if (!runningRef.current) return;
-
-    try {
-      const video = videoRef.current;
-      if (video && video.readyState === 4) {
-        const input = tf.tidy(() => {
-          const img = tf.browser.fromPixels(video);
-          const size = Math.min(img.shape[0], img.shape[1]);
-          const top = Math.floor((img.shape[0] - size) / 2);
-          const left = Math.floor((img.shape[1] - size) / 2);
-          return img
-            .slice([top, left, 0], [size, size, 3])
-            .resizeBilinear([224, 224])
-            .toFloat()
-            .div(127.5)
-            .sub(1)
-            .expandDims(0);
-        });
-
-        const output = modelRef.current.predict(input);
-        const probs = await output.data();
-        input.dispose();
-        output.dispose();
-
-        let bestScore = 0;
-        let bestLabel = "";
-        TARGET_LABELS.forEach((name) => {
-          const i = labelsRef.current.indexOf(name);
-          if (i !== -1 && probs[i] > bestScore) {
-            bestScore = probs[i];
-            bestLabel = name;
-          }
-        });
-
-        if (bestScore > MIN_SCORE) {
-          setDetected(true);
-          setScore(Math.round(bestScore * 100));
-          setStatus(`${bestLabel} detected`);
-
-          if (timestamp - lastPlayedRef.current > COOLDOWN_MS) {
-            lastPlayedRef.current = timestamp;
-            playAlarm();
-          }
-        } else {
-          setDetected(false);
-          setScore(Math.round(bestScore * 100));
-          setStatus("Watching... nothing detected");
-        }
-      }
-    } catch (err) {
-      console.log("Loop error:", err);
-      setStatus("Loop error: " + err.message);
-    }
-
-    setTimeout(() => loop(performance.now()), 300);
-  };
-
   const stop = () => {
     runningRef.current = false;
+    cooldownRef.current = false;
+    clearTimeout(checkTimerRef.current);
     clearTimeout(soundTimerRef.current);
     audioRef.current?.pause();
     const stream = videoRef.current?.srcObject;
