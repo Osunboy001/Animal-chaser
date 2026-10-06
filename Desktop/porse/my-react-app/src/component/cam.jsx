@@ -1,7 +1,9 @@
+import {Link} from "react-router-dom"
 import { useEffect, useRef, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "./cam.css";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const TARGETS = ["sheep", "cow", "bird"];
 const MIN_SCORE = 0.4;
@@ -42,7 +44,7 @@ function BirdDetector() {
     
       });
        e.name
-    }
+    }    
 
     videoRef.current.srcObject = stream;
     videoRef.current.muted = true;
@@ -76,6 +78,39 @@ function BirdDetector() {
     }, SOUND_MS);
   };
 
+const sendDetection = async (label, score) => {
+  const video = videoRef.current;
+  const photos = [];
+
+  for (let i = 0; i < 3; i++) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = Math.round((640 * video.videoHeight) / video.videoWidth);
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    photos.push(canvas.toDataURL("image/jpeg", 0.7));
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/api/v1/detection/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label,
+        score,
+        photos,
+        detectedAt: new Date().toISOString(),
+      }),
+    });
+    const data = await res.json();
+    console.log("Saved:", data);
+  } catch (err) {
+    console.log("Upload error:", err.message);
+  }
+};
+
+
+  
   const loop = async () => {
     if (!runningRef.current) return;
 
@@ -97,6 +132,7 @@ function BirdDetector() {
           if (!cooldownRef.current) {
             cooldownRef.current = true;
             playAlarm();
+            sendDetection(found.class, Math.round(found.score * 100))
             setTimeout(() => {
               cooldownRef.current = false;
             }, COOLDOWN_MS);
@@ -113,6 +149,9 @@ function BirdDetector() {
     }
 
     checkTimerRef.current = setTimeout(loop, CHECK_MS);
+
+
+    
   };
 
   const start = async () => {
@@ -192,8 +231,16 @@ function BirdDetector() {
             Switch to {facing === "environment" ? "front" : "back"} camera
           </button>
         </div>
+
+        <div>
+          <Link to ="/dashboard">
+            <button className="dashboardbtn">Move to dashbaord</button>
+            
+          </Link>
+        </div>
       </div>
     </div>
+  
   );
 }
 
