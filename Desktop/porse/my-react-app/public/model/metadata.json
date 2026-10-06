@@ -1,1 +1,1 @@
-{"tfjsVersion":"1.7.4","tmVersion":"2.4.17","packageVersion":"0.8.4-alpha2","packageName":"@teachablemachine/image","timeStamp":"2026-10-02T03:51:59.258Z","userMetadata":{},"modelName":"tm-my-image-model","labels":["goat","nothing","hen"],"imageSize":224}
+{"tfjsVersion":"1.7.4","tmVersion":"2.4.17","packageVersion":"0.8.4-alpha2","packageName":"@teachablemachine/image","timeStamp":"2026-10-02T19:13:49.872Z","userMetadata":{},"modelName":"tm-my-image-model","labels":["goat","hen","nothing"],"imageSize":224}
