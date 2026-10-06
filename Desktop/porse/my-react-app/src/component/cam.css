@@ -121,8 +121,8 @@
   padding: 12px 0;
   border: 3px solid var(--ink);
   border-radius: 12px;
-  color: var(--ink);
-  font-size: 16px;
+  background: #a3e635;
+  font-size: 14px;
   font-weight: 800;
   text-transform: uppercase;
   cursor: pointer;
@@ -152,4 +152,12 @@
 @keyframes blink {
   from { transform: scale(1); }
   to   { transform: scale(1.5); }
+}
+
+.dashboardbtn {
+  background-color: #fb923c;
+  border: none;
+  font-size: 17px;
+  padding: 12px;
+  margin-top: 20px;
 }
