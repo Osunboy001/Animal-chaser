@@ -37,8 +37,10 @@ const ALLOWED_LABELS = ["goat", "hen", "sheep", "cow", "bird", "dog"];
       photos,
       detectedAt: date,
       cameraId,
+    
     });
 
+  
     res.status(201).json({ ok: true, id: detection._id });
   } catch (err) {
     next(err);
